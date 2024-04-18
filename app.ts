@@ -1,6 +1,5 @@
 import { Request, Response } from "express";
 const express = require("express");
-
 require("dotenv").config();
 require("./db");
 const app = express();
@@ -12,12 +11,16 @@ const app = express();
 // app.use(cors(corsOpt));
 app.use(express.json());
 
-const Phrase = require("./models/phrase.models");
+const Permanent_Phrases = require("./models/Permanent_Phrases.models");
+const Temporary_Phrases = require("./models/temporary_Phrases.models");
 
 app.post("/api/v1/name", async (req: Request, res: Response) => {
-  const { name } = req.body;
-  const newUser = new Phrase();
-  newUser.name = name;
+  const { category, content, author } = req.body;
+  const newUser = new Permanent_Phrases();
+  newUser.category = category;
+  newUser.content = content;
+  newUser.author = author;
+  newUser.date = new Date();
 
   await newUser.save();
 
