@@ -1,7 +1,7 @@
 import mongoose from "mongoose";
 
 const Temporary_Phrases = new mongoose.Schema({
-  userId: { type: mongoose.Schema.Types.ObjectId, required: true },
+  // userId: { type: mongoose.Schema.Types.ObjectId, required: true },
   category: { type: String, required: true },
   content: { type: String, required: true },
   author: { type: String, required: true },
