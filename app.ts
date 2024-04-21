@@ -1,6 +1,6 @@
 import { Request, Response } from "express";
 import { getDataFunc } from "./helpers";
-import authorization from "./middleware";
+import { adminCheck, authorization } from "./middleware";
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 require("dotenv").config();
@@ -9,7 +9,7 @@ const express = require("express");
 const app = express();
 const cors = require("cors");
 const corsOpt = {
-  origin: ["http://localhost:5173", "https://budget-app-gemazzz.vercel.app"],
+  origin: ["http://localhost:5173"],
   credentials: true,
 };
 
@@ -34,6 +34,8 @@ app.post("/api/v1/signup", async (req: Request, res: Response) => {
   newUser.surname = surname;
   newUser.email = email;
   newUser.password = hashedPassword;
+  newUser.role = "user";
+  newUser.favorites = [];
   newUser.created_at = getDataFunc();
 
   await newUser.save();
@@ -53,11 +55,10 @@ app.post("/api/v1/signin", async (req: Request, res: Response) => {
   }
   const userId = foundUser._id;
   const token = jwt.sign({ userId }, process.env.secretKey, { expiresIn: "5h" });
-  res.cookie("jwt", token, { httpOnly: true, maxAge: 18000000 });
   res.status(200).json({ token: token });
 });
 
-app.post("/api/v1/temporary_Phrases", async (req: Request, res: Response) => {
+app.post("/api/v1/temporary_Phrases", authorization, async (req: Request, res: Response) => {
   const { category, content, author } = req.body;
   const newPhrase = new Temporary_Phrases({ category: category, content: content, author: author, date: getDataFunc() });
 
@@ -82,9 +83,10 @@ app.post("/api/v1/Permanent_Phrases", async (req: Request, res: Response) => {
   res.status(200).json({ message: "Added!" });
 });
 
-app.get("/api/v1/temporary_Phrases", authorization, async (req: Request, res: Response) => {
-  const temporaryPhrase = await Temporary_Phrases.find().skip(0).limit(3);
-  return res.status(200).json(temporaryPhrase);
+app.get("/api/v1/temporary_Phrases/:page", adminCheck, async (req: Request, res: Response) => {
+  const { page } = req.params;
+  const temporaryPhrase = await Temporary_Phrases.find().skip(page).limit(5);
+  res.status(200).json(temporaryPhrase);
 });
 
 const port: number = process.env.PORT ? parseInt(process.env.PORT) : 3000;
