@@ -18,7 +18,7 @@ app.use(express.json());
 
 const Permanent_Phrases = require("./models/Permanent_Phrases.models");
 const Temporary_Phrases = require("./models/temporary_Phrases.models");
-const User = require("./models/Users.models");
+const User = require("./models/User.models");
 
 //User
 app.post("/api/v1/signup", async (req: Request, res: Response) => {
@@ -29,14 +29,15 @@ app.post("/api/v1/signup", async (req: Request, res: Response) => {
   }
 
   const hashedPassword = await bcrypt.hash(password, 10);
-  const newUser = new User();
-  newUser.name = name;
-  newUser.surname = surname;
-  newUser.email = email;
-  newUser.password = hashedPassword;
-  newUser.role = "user";
-  newUser.favorites = [];
-  newUser.created_at = getDataFunc();
+  const newUser = new User({
+    name: name,
+    surname: surname,
+    email: email,
+    password: hashedPassword,
+    role: "user",
+    favorites: [],
+    created_at: getDataFunc(),
+  });
 
   await newUser.save();
 
