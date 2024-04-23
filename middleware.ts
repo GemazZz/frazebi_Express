@@ -1,10 +1,11 @@
 import { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
+import { AuthenticatedRequest } from "./props";
 require("dotenv").config();
 
 const User = require("./models/User.models");
 
-export const authorization = (req: Request, res: Response, next: NextFunction) => {
+export const authorization = (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
   const token: string | undefined = req.headers["authorization"];
 
   if (!token) {
@@ -16,13 +17,12 @@ export const authorization = (req: Request, res: Response, next: NextFunction) =
       return res.status(403).json({ error: err });
     }
 
-    (req as any).user = user;
-    console.log(user);
+    req.user = user;
     next();
   });
 };
 
-export const adminCheck = (req: Request, res: Response, next: NextFunction) => {
+export const adminCheck = (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
   const token: string | undefined = req.headers["authorization"];
 
   if (!token) {

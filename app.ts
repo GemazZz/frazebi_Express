@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import { getDataFunc } from "./helpers";
 import { adminCheck, authorization } from "./middleware";
+import { AuthenticatedRequest, UsersSchemaProps } from "./props";
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 require("dotenv").config();
@@ -56,6 +57,7 @@ app.post("/api/v1/signin", async (req: Request, res: Response) => {
   }
   const userId = foundUser._id;
   const token = jwt.sign({ userId }, process.env.secretKey, { expiresIn: "5h" });
+
   res.status(200).json({ token: token });
 });
 
@@ -88,6 +90,25 @@ app.get("/api/v1/temporary_Phrases/:page", adminCheck, async (req: Request, res:
   const { page } = req.params;
   const temporaryPhrase = await Temporary_Phrases.find().skip(page).limit(5);
   res.status(200).json(temporaryPhrase);
+});
+
+app.post("/api/v1/home", authorization, async (req: Request, res: Response) => {
+  res.status(200).json("authorized");
+});
+
+app.post("/api/v1/favorite/:phraseId", authorization, async (req: AuthenticatedRequest, res: Response) => {
+  const { phraseId } = req.params;
+  const { userId } = req.user;
+  const user: UsersSchemaProps = await User.findOne({ _id: userId });
+  console.log(user);
+  if (user.favorites.includes(phraseId)) {
+    const updateFavArr = user.favorites.filter((phrase) => phrase !== phraseId);
+    await User.updateOne({ _id: userId }, { favorites: updateFavArr });
+    res.status(200).json({ message: "removed" });
+  } else {
+    await User.updateOne({ _id: userId }, { favorites: [...user.favorites, phraseId] });
+    res.status(200).json({ message: "added" });
+  }
 });
 
 const port: number = process.env.PORT ? parseInt(process.env.PORT) : 3000;
