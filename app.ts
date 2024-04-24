@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
 import { getDataFunc } from "./helpers";
 import { adminCheck, authorization } from "./middleware";
-import { AuthenticatedRequest, UsersSchemaProps } from "./props";
+import { AuthenticatedRequest, PhraseProps, SignInProps, UserProps } from "./props";
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 require("dotenv").config();
@@ -17,19 +17,19 @@ const corsOpt = {
 app.use(cors(corsOpt));
 app.use(express.json());
 
-const Permanent_Phrases = require("./models/Permanent_Phrases.models");
-const Temporary_Phrases = require("./models/temporary_Phrases.models");
-const User = require("./models/User.models");
+import User from "./models/User.models";
+import Temporary_Phrases from "./models/Temporary_Phrases.models";
+import Permanent_Phrases from "./models/Permanent_Phrases.models";
 
 //User
 app.post("/api/v1/signup", async (req: Request, res: Response) => {
-  const { name, surname, email, password } = req.body;
-  const foundUser = await User.findOne({ email: email });
+  const { name, surname, email, password }: UserProps = req.body;
+  const foundUser: UserProps | null = await User.findOne({ email: email });
   if (foundUser) {
     return res.status(400).json({ err: "Email is in use!" });
   }
 
-  const hashedPassword = await bcrypt.hash(password, 10);
+  const hashedPassword: string = await bcrypt.hash(password, 10);
   const newUser = new User({
     name: name,
     surname: surname,
@@ -46,49 +46,50 @@ app.post("/api/v1/signup", async (req: Request, res: Response) => {
 });
 
 app.post("/api/v1/signin", async (req: Request, res: Response) => {
-  const { email, password } = req.body;
-  const foundUser = await User.findOne({ email: email });
+  const { email, password }: SignInProps = req.body;
+  const foundUser: UserProps | null = await User.findOne({ email: email });
   if (!foundUser) {
     return res.status(400).json({ err: "User does not Exist!" });
   }
-  const isPasswordCorrect = await bcrypt.compare(password, foundUser.password);
+  const isPasswordCorrect: boolean = await bcrypt.compare(password, foundUser.password);
   if (!isPasswordCorrect) {
     return res.status(400).json({ err: "Wrong Credentials" });
   }
-  const userId = foundUser._id;
+  const userId: string = foundUser._id;
   const token = jwt.sign({ userId }, process.env.secretKey, { expiresIn: "5h" });
 
   res.status(200).json({ token: token });
 });
 
 app.post("/api/v1/temporary_Phrases", authorization, async (req: Request, res: Response) => {
-  const { category, content, author } = req.body;
-  const newPhrase = new Temporary_Phrases({ category: category, content: content, author: author, date: getDataFunc() });
+  const { category, content, author }: PhraseProps = req.body;
+  const newPhrase: PhraseProps = new Temporary_Phrases({ category: category, content: content, author: author, date: getDataFunc() });
 
   await newPhrase.save();
 
   res.status(200).json({ message: "Added!" });
 });
 
-app.post("/api/v1/Permanent_Phrases", async (req: Request, res: Response) => {
-  const { _id } = req.body;
-  const temporaryPhrase = await Temporary_Phrases.findOne({ _id: _id });
-  const permanentPhrase = new Permanent_Phrases({
-    category: temporaryPhrase.category,
-    content: temporaryPhrase.content,
-    author: temporaryPhrase.author,
-    date: temporaryPhrase.date,
+app.post("/api/v1/Permanent_Phrases/:phraseId", adminCheck, async (req: Request, res: Response) => {
+  const { phraseId } = req.params;
+  const temporaryPhrase: PhraseProps | null = await Temporary_Phrases.findOne({ _id: phraseId });
+  const permanentPhrase: PhraseProps = new Permanent_Phrases({
+    category: temporaryPhrase?.category,
+    content: temporaryPhrase?.content,
+    author: temporaryPhrase?.author,
+    date: temporaryPhrase?.date,
   });
 
-  await Temporary_Phrases.deleteOne({ _id: _id });
+  await Temporary_Phrases.deleteOne({ _id: phraseId });
   await permanentPhrase.save();
 
   res.status(200).json({ message: "Added!" });
 });
 
 app.get("/api/v1/temporary_Phrases/:page", adminCheck, async (req: Request, res: Response) => {
-  const { page } = req.params;
-  const temporaryPhrase = await Temporary_Phrases.find().skip(page).limit(5);
+  const page: number = parseInt(req.params.page);
+  const skip: number = (page - 1) * 5;
+  const temporaryPhrase: PhraseProps[] = await Temporary_Phrases.find().skip(skip).limit(5);
   res.status(200).json(temporaryPhrase);
 });
 
@@ -99,16 +100,22 @@ app.post("/api/v1/home", authorization, async (req: Request, res: Response) => {
 app.post("/api/v1/favorite/:phraseId", authorization, async (req: AuthenticatedRequest, res: Response) => {
   const { phraseId } = req.params;
   const { userId } = req.user;
-  const user: UsersSchemaProps = await User.findOne({ _id: userId });
-  console.log(user);
-  if (user.favorites.includes(phraseId)) {
-    const updateFavArr = user.favorites.filter((phrase) => phrase !== phraseId);
+  const user: UserProps | null = await User.findOne({ _id: userId });
+  if (user?.favorites.includes(phraseId)) {
+    const updateFavArr: string[] = user.favorites.filter((phrase) => phrase !== phraseId);
     await User.updateOne({ _id: userId }, { favorites: updateFavArr });
     res.status(200).json({ message: "removed" });
   } else {
-    await User.updateOne({ _id: userId }, { favorites: [...user.favorites, phraseId] });
+    user && (await User.updateOne({ _id: userId }, { favorites: [...user.favorites, phraseId] }));
     res.status(200).json({ message: "added" });
   }
+});
+
+app.get("/api/v1/home/:page", async (req: Request, res: Response) => {
+  const page: number = parseInt(req.params.page);
+  const skip: number = (page - 1) * 5;
+  const permanentPhrase: object[] = await Permanent_Phrases.find().skip(skip).limit(5);
+  res.status(200).json(permanentPhrase);
 });
 
 const port: number = process.env.PORT ? parseInt(process.env.PORT) : 3000;

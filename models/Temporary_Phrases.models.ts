@@ -1,10 +1,13 @@
-import mongoose from "mongoose";
+import mongoose, { Model, Schema } from "mongoose";
+import { PhraseProps } from "../props";
 
-const Temporary_Phrases = new mongoose.Schema({
+const TemporaryPhrasesSchema: Schema = new Schema({
   category: { type: String, required: true },
   content: { type: String, required: true },
   author: { type: String, required: true },
   date: { type: String, required: true },
 });
 
-module.exports = mongoose.model("temporary_Phrases", Temporary_Phrases);
+const Temporary_Phrases: Model<PhraseProps> = mongoose.model<PhraseProps>("TemporaryPhrase", TemporaryPhrasesSchema);
+
+export default Temporary_Phrases;

@@ -1,6 +1,7 @@
-import mongoose from "mongoose";
+import mongoose, { Model, Schema } from "mongoose";
+import { UserProps } from "../props";
 
-const UsersSchema = new mongoose.Schema({
+const UsersSchema: Schema = new mongoose.Schema({
   name: { type: String, required: true },
   surname: { type: String, required: true },
   email: { type: String, required: true },
@@ -10,4 +11,6 @@ const UsersSchema = new mongoose.Schema({
   created_at: { type: String, required: true },
 });
 
-module.exports = mongoose.model("User", UsersSchema);
+const User: Model<UserProps> = mongoose.model<UserProps>("User", UsersSchema);
+
+export default User;

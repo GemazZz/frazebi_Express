@@ -1,4 +1,4 @@
-import { Request, Response, NextFunction } from "express";
+import { Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
 import { AuthenticatedRequest } from "./props";
 require("dotenv").config();
@@ -16,7 +16,6 @@ export const authorization = (req: AuthenticatedRequest, res: Response, next: Ne
     if (err) {
       return res.status(403).json({ error: err });
     }
-
     req.user = user;
     next();
   });
@@ -37,7 +36,7 @@ export const adminCheck = (req: AuthenticatedRequest, res: Response, next: NextF
     const foundAdmin = await User.findOne({ _id: user.userId });
 
     if (foundAdmin.role === "admin") {
-      (req as any).user = user;
+      req.user = user;
       next();
     } else {
       return res.status(401).json({ error: "not Admin" });
