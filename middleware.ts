@@ -3,7 +3,7 @@ import jwt from "jsonwebtoken";
 import { AuthenticatedRequest } from "./props";
 require("dotenv").config();
 
-const User = require("./models/User.models");
+import User from "./models/User.models";
 
 export const authorization = (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
   const token: string | undefined = req.headers["authorization"];
@@ -35,7 +35,7 @@ export const adminCheck = (req: AuthenticatedRequest, res: Response, next: NextF
 
     const foundAdmin = await User.findOne({ _id: user.userId });
 
-    if (foundAdmin.role === "admin") {
+    if (foundAdmin?.role === "admin") {
       req.user = user;
       next();
     } else {

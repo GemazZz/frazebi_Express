@@ -8,6 +8,6 @@ const TemporaryPhrasesSchema: Schema = new Schema({
   date: { type: String, required: true },
 });
 
-const Temporary_Phrases: Model<PhraseProps> = mongoose.model<PhraseProps>("TemporaryPhrase", TemporaryPhrasesSchema);
+const Temporary_Phrases: Model<PhraseProps> = mongoose.model<PhraseProps>("Temporary_Phrases", TemporaryPhrasesSchema);
 
 export default Temporary_Phrases;

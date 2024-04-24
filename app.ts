@@ -73,17 +73,21 @@ app.post("/api/v1/temporary_Phrases", authorization, async (req: Request, res: R
 app.post("/api/v1/Permanent_Phrases/:phraseId", adminCheck, async (req: Request, res: Response) => {
   const { phraseId } = req.params;
   const temporaryPhrase: PhraseProps | null = await Temporary_Phrases.findOne({ _id: phraseId });
-  const permanentPhrase: PhraseProps = new Permanent_Phrases({
-    category: temporaryPhrase?.category,
-    content: temporaryPhrase?.content,
-    author: temporaryPhrase?.author,
-    date: temporaryPhrase?.date,
-  });
 
-  await Temporary_Phrases.deleteOne({ _id: phraseId });
-  await permanentPhrase.save();
+  if (temporaryPhrase === null) {
+    res.status(404).json({ message: "Temporary phrase not found!" });
+  } else {
+    const permanentPhrase: PhraseProps = new Permanent_Phrases({
+      category: temporaryPhrase.category,
+      content: temporaryPhrase.content,
+      author: temporaryPhrase.author,
+      date: temporaryPhrase.date,
+    });
 
-  res.status(200).json({ message: "Added!" });
+    await Temporary_Phrases.deleteOne({ _id: phraseId });
+    await permanentPhrase.save();
+    res.status(200).json({ message: "Added!" });
+  }
 });
 
 app.get("/api/v1/temporary_Phrases/:page", adminCheck, async (req: Request, res: Response) => {
@@ -117,6 +121,11 @@ app.get("/api/v1/home/:page", async (req: Request, res: Response) => {
   const permanentPhrase: object[] = await Permanent_Phrases.find().skip(skip).limit(5);
   res.status(200).json(permanentPhrase);
 });
+
+// app.get("/api/v1/search", async (req: Request, res: Response) => {
+//   const { searchWords } = req.body;
+//   res.status(200).json(outcome);
+// });
 
 const port: number = process.env.PORT ? parseInt(process.env.PORT) : 3000;
 
