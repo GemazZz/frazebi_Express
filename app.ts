@@ -118,14 +118,15 @@ app.post("/api/v1/favorite/:phraseId", authorization, async (req: AuthenticatedR
 app.get("/api/v1/home/:page", async (req: Request, res: Response) => {
   const page: number = parseInt(req.params.page);
   const skip: number = (page - 1) * 5;
-  const permanentPhrase: object[] = await Permanent_Phrases.find().skip(skip).limit(5);
+  const permanentPhrase: PhraseProps[] = await Permanent_Phrases.find().skip(skip).limit(5);
   res.status(200).json(permanentPhrase);
 });
 
-// app.get("/api/v1/search", async (req: Request, res: Response) => {
-//   const { searchWords } = req.body;
-//   res.status(200).json(outcome);
-// });
+app.get("/api/v1/search", async (req: Request, res: Response) => {
+  const { searchWords }: { searchWords: string } = req.body;
+  const outcome: PhraseProps[] = await Permanent_Phrases.find({ $text: { $search: searchWords } });
+  res.status(200).json(outcome);
+});
 
 const port: number = process.env.PORT ? parseInt(process.env.PORT) : 3000;
 
