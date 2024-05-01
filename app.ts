@@ -22,6 +22,7 @@ import Temporary_Phrases from "./models/Temporary_Phrases.models";
 import Permanent_Phrases from "./models/Permanent_Phrases.models";
 
 //User
+//Sign Up
 app.post("/api/v1/signup", async (req: Request, res: Response) => {
   const { name, surname, email, password }: UserProps = req.body;
   const foundUser: UserProps | null = await User.findOne({ email: email });
@@ -42,11 +43,15 @@ app.post("/api/v1/signup", async (req: Request, res: Response) => {
 
   await newUser.save();
 
-  res.status(200).json({ message: "Added!" });
+  return res.status(200).json({ message: "Added!" });
 });
 
+//Sign In
 app.post("/api/v1/signin", async (req: Request, res: Response) => {
   const { email, password }: SignInProps = req.body;
+  if (!email || !password) {
+    return res.status(400).json({ err: "Something Missing!" });
+  }
   const foundUser: UserProps | null = await User.findOne({ email: email });
   if (!foundUser) {
     return res.status(400).json({ err: "User does not Exist!" });
@@ -58,25 +63,86 @@ app.post("/api/v1/signin", async (req: Request, res: Response) => {
   const userId: string = foundUser._id;
   const token = jwt.sign({ userId }, process.env.secretKey, { expiresIn: "5h" });
 
-  res.status(200).json({ token: token });
+  return res.status(200).json({ token: token });
 });
 
+//check if user is authorized
+app.get("/api/v1/home/username", authorization, async (req: AuthenticatedRequest, res: Response) => {
+  const { userId }: { userId: string } = req.user;
+  const user: UserProps | null = await User.findOne({ _id: userId });
+  if (!user) {
+    return res.status(404).json({ err: "user not found" });
+  } else {
+    return res.status(200).json({ message: user.name });
+  }
+});
+
+//user gets permanent phrases
+app.get("/api/v1/home/:page", async (req: Request, res: Response) => {
+  const page: number = parseInt(req.params.page);
+  const skip: number = (page - 1) * 5;
+  const permanentPhrase: PhraseProps[] = await Permanent_Phrases.find().skip(skip).limit(5);
+  return res.status(200).json(permanentPhrase);
+});
+
+//user gets favorite phrases
+app.get("/api/v1/favorite/:page", authorization, async (req: AuthenticatedRequest, res: Response) => {
+  const { userId }: { userId: string } = req.user;
+  const page: number = parseInt(req.params.page);
+  const skip: number = (page - 1) * 5;
+  const user: UserProps | null = await User.findOne({ _id: userId });
+  if (!user) {
+    return res.status(400).json({ err: "user not found!" });
+  }
+  const favArr: string[] | undefined = user?.favorites;
+  const foundFavArr: PhraseProps[] = await Permanent_Phrases.find({ favArr }).skip(skip).limit(5);
+  return res.status(200).json({ foundFavArr });
+});
+
+//user adds or deletes favorite phrases
+app.post("/api/v1/favorite/:phraseId", authorization, async (req: AuthenticatedRequest, res: Response) => {
+  const { phraseId }: { phraseId?: string } = req.params;
+  const { userId }: { userId: string } = req.user;
+  const user: UserProps | null = await User.findOne({ _id: userId });
+  if (user?.favorites.includes(phraseId)) {
+    const updateFavArr: string[] = user.favorites.filter((phrase) => phrase !== phraseId);
+    await User.updateOne({ _id: userId }, { favorites: updateFavArr });
+    return res.status(200).json({ message: "removed" });
+  } else if (!user?.favorites.includes(phraseId)) {
+    user && (await User.updateOne({ _id: userId }, { favorites: [...user.favorites, phraseId] }));
+    return res.status(200).json({ message: "added" });
+  } else {
+    return res.status(400).json({ err: "Something Missing!" });
+  }
+});
+
+//user sends new phrase
 app.post("/api/v1/temporary_Phrases", authorization, async (req: Request, res: Response) => {
   const { category, content, author }: PhraseProps = req.body;
+  if (!category || !content || !author) {
+    return res.status(400).json({ err: "Something Missing!" });
+  }
   const newPhrase: PhraseProps = new Temporary_Phrases({ category: category, content: content, author: author, date: getDataFunc() });
 
   await newPhrase.save();
 
-  res.status(200).json({ message: "Added!" });
+  return res.status(200).json({ message: "Added!" });
 });
 
-app.post("/api/v1/Permanent_Phrases/:phraseId", adminCheck, async (req: Request, res: Response) => {
-  const { phraseId } = req.params;
-  const temporaryPhrase: PhraseProps | null = await Temporary_Phrases.findOne({ _id: phraseId });
+//user search phrases
+app.get("/api/v1/search", async (req: Request, res: Response) => {
+  const { searchWords }: { searchWords: string } = req.body;
+  const outcome: PhraseProps[] = await Permanent_Phrases.find({ $text: { $search: searchWords } });
+  return res.status(200).json(outcome);
+});
 
+//admin adds or deletes phrase which was sent by client
+app.post("/api/v1/Permanent_Phrases/:phraseId/:command", adminCheck, async (req: Request, res: Response) => {
+  const { phraseId, command }: { phraseId?: string; command?: string } = req.params;
+  const temporaryPhrase: PhraseProps | null = await Temporary_Phrases.findOne({ _id: phraseId });
   if (temporaryPhrase === null) {
-    res.status(404).json({ message: "Temporary phrase not found!" });
-  } else {
+    return res.status(404).json({ message: "Temporary phrase not found!" });
+  } else if (command === "add") {
     const permanentPhrase: PhraseProps = new Permanent_Phrases({
       category: temporaryPhrase.category,
       content: temporaryPhrase.content,
@@ -86,46 +152,19 @@ app.post("/api/v1/Permanent_Phrases/:phraseId", adminCheck, async (req: Request,
 
     await Temporary_Phrases.deleteOne({ _id: phraseId });
     await permanentPhrase.save();
-    res.status(200).json({ message: "Added!" });
+    return res.status(200).json({ message: "Added!" });
+  } else if (command === "delete") {
+    await Temporary_Phrases.deleteOne({ _id: phraseId });
+    return res.status(200).json({ message: "Deleted!" });
   }
 });
 
+//admin gets temporary phrases
 app.get("/api/v1/temporary_Phrases/:page", adminCheck, async (req: Request, res: Response) => {
   const page: number = parseInt(req.params.page);
   const skip: number = (page - 1) * 5;
   const temporaryPhrase: PhraseProps[] = await Temporary_Phrases.find().skip(skip).limit(5);
-  res.status(200).json(temporaryPhrase);
-});
-
-app.post("/api/v1/home", authorization, async (req: Request, res: Response) => {
-  res.status(200).json("authorized");
-});
-
-app.post("/api/v1/favorite/:phraseId", authorization, async (req: AuthenticatedRequest, res: Response) => {
-  const { phraseId } = req.params;
-  const { userId } = req.user;
-  const user: UserProps | null = await User.findOne({ _id: userId });
-  if (user?.favorites.includes(phraseId)) {
-    const updateFavArr: string[] = user.favorites.filter((phrase) => phrase !== phraseId);
-    await User.updateOne({ _id: userId }, { favorites: updateFavArr });
-    res.status(200).json({ message: "removed" });
-  } else {
-    user && (await User.updateOne({ _id: userId }, { favorites: [...user.favorites, phraseId] }));
-    res.status(200).json({ message: "added" });
-  }
-});
-
-app.get("/api/v1/home/:page", async (req: Request, res: Response) => {
-  const page: number = parseInt(req.params.page);
-  const skip: number = (page - 1) * 5;
-  const permanentPhrase: PhraseProps[] = await Permanent_Phrases.find().skip(skip).limit(5);
-  res.status(200).json(permanentPhrase);
-});
-
-app.get("/api/v1/search", async (req: Request, res: Response) => {
-  const { searchWords }: { searchWords: string } = req.body;
-  const outcome: PhraseProps[] = await Permanent_Phrases.find({ $text: { $search: searchWords } });
-  res.status(200).json(outcome);
+  return res.status(200).json(temporaryPhrase);
 });
 
 const port: number = process.env.PORT ? parseInt(process.env.PORT) : 3000;
