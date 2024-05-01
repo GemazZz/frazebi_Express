@@ -9,7 +9,7 @@ export const authorization = (req: AuthenticatedRequest, res: Response, next: Ne
   const token: string | undefined = req.headers["authorization"];
 
   if (!token) {
-    return res.status(401).json({ error: "Unauthorized" });
+    return res.status(401).json({ message: "Unauthorized" });
   }
 
   jwt.verify(token, process.env.secretKey as string, (err: any, user: any) => {
