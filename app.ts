@@ -63,7 +63,7 @@ app.post("/api/v1/signin", async (req: Request, res: Response) => {
   const userId: string = foundUser._id;
   const token = jwt.sign({ userId }, process.env.secretKey, { expiresIn: "5h" });
 
-  return res.status(200).json({ token: token });
+  return res.status(200).json(token);
 });
 
 //check if user is authorized
@@ -71,7 +71,7 @@ app.get("/api/v1/home/username", authorization, async (req: AuthenticatedRequest
   const { userId }: { userId: string } = req.user;
   const user: UserProps | null = await User.findOne({ _id: userId });
   if (!user) {
-    return res.status(404).json({ err: "user not found" });
+    return res.status(404).json({ message: "user not found" });
   } else {
     return res.status(200).json({ message: user.name });
   }
@@ -136,6 +136,15 @@ app.get("/api/v1/search", async (req: Request, res: Response) => {
   return res.status(200).json(outcome);
 });
 
+//admin
+//admin gets temporary phrases
+app.get("/api/v1/temporary_Phrases/:page", adminCheck, async (req: Request, res: Response) => {
+  const page: number = parseInt(req.params.page);
+  const skip: number = (page - 1) * 5;
+  const temporaryPhrase: PhraseProps[] = await Temporary_Phrases.find().skip(skip).limit(5);
+  return res.status(200).json(temporaryPhrase);
+});
+
 //admin adds or deletes phrase which was sent by client
 app.post("/api/v1/Permanent_Phrases/:phraseId/:command", adminCheck, async (req: Request, res: Response) => {
   const { phraseId, command }: { phraseId?: string; command?: string } = req.params;
@@ -157,14 +166,6 @@ app.post("/api/v1/Permanent_Phrases/:phraseId/:command", adminCheck, async (req:
     await Temporary_Phrases.deleteOne({ _id: phraseId });
     return res.status(200).json({ message: "Deleted!" });
   }
-});
-
-//admin gets temporary phrases
-app.get("/api/v1/temporary_Phrases/:page", adminCheck, async (req: Request, res: Response) => {
-  const page: number = parseInt(req.params.page);
-  const skip: number = (page - 1) * 5;
-  const temporaryPhrase: PhraseProps[] = await Temporary_Phrases.find().skip(skip).limit(5);
-  return res.status(200).json(temporaryPhrase);
 });
 
 const port: number = process.env.PORT ? parseInt(process.env.PORT) : 3000;
